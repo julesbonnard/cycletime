@@ -38,19 +38,10 @@ function parseGPX(gpx: string): Point[] {
   }))
 }
 
-async function readFile (file: File) {
-  const stream = await file.stream()
-  let fileString = ''
-  for await (const chunk of stream) {
-    const chunkString = new TextDecoder("utf-8").decode(chunk, { stream: true })
-    fileString += chunkString
-  }
-  return fileString
-}
-
 export function useGPXParser() {
-  const manualData = ref('')
-  const manualFileName = ref('')
+  const data: Ref<string | undefined> = ref()
+  const fileName: Ref<string | undefined> = ref()
+
   async function open () {
     const file = await fileOpen({
       description: 'GPX files',
@@ -58,26 +49,10 @@ export function useGPXParser() {
       extensions: ['.gpx'],
       multiple: false
     })
-    if (file.handle) {
-      manualData.value = await readFile(await file.handle.getFile())
-      manualFileName.value = file.name
-    }
+    data.value = await file.text()
+    fileName.value = file.name
   }
-  // const { data: manualData, fileName: manualFileName } = useFileSystemAccess({
-  //   dataType: 'Text',
-  //   types: [
-  //     {
-  //       description: 'gpx',
-  //       accept: {
-  //         'text/plain': ['.gpx']
-  //       }
-  //     }
-  //   ],
-  //   excludeAcceptAllOption: true
-  // })
 
-  const dragData: Ref<string | undefined> = ref()
-  const dragFileName: Ref<string | undefined> = ref()
   const isDragOver = ref(false)
 
   useEventListener('dragover', e => {
@@ -97,12 +72,9 @@ export function useGPXParser() {
     const file = item.getAsFile()
     if (!file) return
 
-    dragData.value = await readFile(file)
-    dragFileName.value = file.name
+    data.value = await file.text()
+    fileName.value = file.name
   })
-
-  const data = computed(() => manualData.value || dragData.value)
-  const fileName = computed(() => manualFileName.value || dragFileName.value)
 
   const points = computed(() => (typeof data.value === 'string' ? parseGPX(data.value) : []))
 
