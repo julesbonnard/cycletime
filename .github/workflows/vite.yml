@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  VITE_MAPBOX_TOKEN: env.VITE_MAPBOX_TOKEN
+  VITE_MAPBOX_TOKEN: ${{ vars.VITE_MAPBOX_TOKEN }}
 
 # Sets the GITHUB_TOKEN permissions to allow deployment to GitHub Pages
 permissions:
