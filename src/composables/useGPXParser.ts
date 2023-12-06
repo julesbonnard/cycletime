@@ -1,6 +1,7 @@
 import { XMLParser } from 'fast-xml-parser'
-import { useFileSystemAccess, useEventListener } from '@vueuse/core'
+import { useEventListener } from '@vueuse/core'
 import { ref, computed, type Ref } from 'vue'
+import { fileOpen } from 'browser-fs-access'
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -37,19 +38,43 @@ function parseGPX(gpx: string): Point[] {
   }))
 }
 
+async function readFile (file: File) {
+  const stream = await file.stream()
+  let fileString = ''
+  for await (const chunk of stream) {
+    const chunkString = new TextDecoder("utf-8").decode(chunk, { stream: true })
+    fileString += chunkString
+  }
+  return fileString
+}
+
 export function useGPXParser() {
-  const { data: manualData, fileName: manualFileName, open } = useFileSystemAccess({
-    dataType: 'Text',
-    types: [
-      {
-        description: 'gpx',
-        accept: {
-          'text/plain': ['.gpx']
-        }
-      }
-    ],
-    excludeAcceptAllOption: true
-  })
+  const manualData = ref('')
+  const manualFileName = ref('')
+  async function open () {
+    const file = await fileOpen({
+      description: 'GPX files',
+      mimeTypes: ['text/plain'],
+      extensions: ['.gpx'],
+      multiple: false
+    })
+    if (file.handle) {
+      manualData.value = await readFile(await file.handle.getFile())
+      manualFileName.value = file.name
+    }
+  }
+  // const { data: manualData, fileName: manualFileName } = useFileSystemAccess({
+  //   dataType: 'Text',
+  //   types: [
+  //     {
+  //       description: 'gpx',
+  //       accept: {
+  //         'text/plain': ['.gpx']
+  //       }
+  //     }
+  //   ],
+  //   excludeAcceptAllOption: true
+  // })
 
   const dragData: Ref<string | undefined> = ref()
   const dragFileName: Ref<string | undefined> = ref()
@@ -71,14 +96,9 @@ export function useGPXParser() {
     if (item.kind !== 'file') return
     const file = item.getAsFile()
     if (!file) return
+
+    dragData.value = await readFile(file)
     dragFileName.value = file.name
-    const stream = await file.stream()
-    let fileString = ''
-    for await (const chunk of stream) {
-      const chunkString = new TextDecoder("utf-8").decode(chunk, { stream: true })
-      fileString += chunkString
-    }
-    dragData.value = fileString
   })
 
   const data = computed(() => manualData.value || dragData.value)
